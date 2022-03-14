@@ -41,7 +41,7 @@ const getAllMatches = async () => {
   const matches = []
   await base(NAME_DB)
         .select({filterByFormula:
-          '{Status} = "Scheduled"',
+          'DATETIME_DIFF({Match Time (UTC)}, NOW(),"hours") >= 0',
         }).eachPage((records, fetchNextPage) => {
           try {
             records.forEach(record => {
