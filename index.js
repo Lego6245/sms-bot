@@ -19,10 +19,10 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
 let SC_VOICE = "https://www.twitch.tv/sunshinecommunity"// sunshine twitch
 let BINGO_VOICE = "https://www.twitch.tv/bingothon" // bingothon twitch
-let OFFLINE_VOICE = "Offline" // offline voice chat
+let OFFLINE_VOICE = "TBD" // offline voice chat
 let NAME_DB = 'Season 4 Matches' // name of the db
 
-const PING_TIMER = 5 * 1000;
+const PING_TIMER = 5 * 60 * 1000;
 
 let created_matches = new Set()
 let GUILD_INSTANCE = ""
@@ -59,9 +59,9 @@ const createEvents = async (matches) => {
 
   for(let match of matches) {
 
+    console.log(`> ${match["Match ID"]} <`);
     if (created_matches.has(match["Match ID"])){
       console.log("An event is already created for this match")
-      console.log(`> ${match["Match ID"]} <`);
       continue
     }
 
@@ -69,7 +69,7 @@ const createEvents = async (matches) => {
 
     console.log("Trying to create a new event");
 
-    const starting_time = new Date(match["Match Time (EST)"]);
+    const starting_time = new Date(match["Match Time (UTC)"]);
     const end_time = new Date(starting_time.getTime() + 90 * 60000);
 
     const updated_event = await GUILD_INSTANCE
@@ -78,10 +78,10 @@ const createEvents = async (matches) => {
         entityType: 3,
         privacyLevel: 2,              
         name: match["Match ID"],
-        scheduledStartTime: starting_time.toString(), 
-        scheduledEndTime: end_time.toString(), 
+        scheduledStartTime: starting_time, 
+        scheduledEndTime: end_time, 
         entityMetadata: {location: twitchLink(match['Restream Channel'])},
-        description: `${match["Match ID"]} ${match['Match Format']} in ${match['Restream Channel']}`,
+        description: `${match["Match ID"]} ${match['Match Format'] ?? "Format TBD"} in ${match['Restream Channel'] ?? "Channel TBD"}`,
       });
   }
 }
@@ -102,7 +102,7 @@ const updateEvents = async () => {
       console.log("Updating event")
       console.log(`> ${match["Match ID"]} <`);
 
-      const starting_time = new Date(match["Match Time (EST)"]);
+      const starting_time = new Date(match["Match Time (UTC)"]);
       const end_time = new Date(starting_time.getTime() + 90 * 60000);
 
       const updated_event = await GUILD_INSTANCE
@@ -110,10 +110,10 @@ const updateEvents = async () => {
             .edit(pair_match_event.get(match["Match ID"]),
               {
               entityType: 3,
-              scheduledStartTime: match["Match Time (EST)"], 
-              scheduledEndTime: end_time.toString(), 
+              scheduledStartTime: starting_time, 
+              scheduledEndTime: end_time, 
               entityMetadata: {location: twitchLink(match['Restream Channel'])},
-              description: `${match["Match ID"]} ${match['Match Format']} in ${match['Restream Channel']}`,
+              description: `${match["Match ID"]} ${match['Match Format'] ?? "Format TBD"} in ${match['Restream Channel'] ?? "Channel TBD"}`,
             });
     }
   } 
@@ -121,7 +121,7 @@ const updateEvents = async () => {
 
 let update_check = false;
 
-setInterval( async () => {
+const performUpdateLoop = async () => {
   const matches = await getAllMatches();
 
   if (update_check)
@@ -130,6 +130,10 @@ setInterval( async () => {
     createEvents(matches);
 
   update_check = !update_check;
+}
+
+setInterval( async () => {
+  performUpdateLoop();
 }, PING_TIMER)
 
 
@@ -147,8 +151,7 @@ client.on("ready",  async () => {
   for (const event of all_events)
     created_matches.add(event[1].name);
 
-  const all_channels = await GUILD_INSTANCE.channels.fetch();
-
+  performUpdateLoop();
 
 });
 
